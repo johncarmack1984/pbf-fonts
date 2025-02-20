@@ -5,6 +5,38 @@ import { z } from "zod";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
+const world: Input[] = [
+  {
+    name: "ne_10m_admin_0_boundary_lines_land",
+    args: ["-Z4", "-zg"],
+    params: [
+      "--extend-zooms-if-still-dropping",
+      "--coalesce-densest-as-needed",
+    ],
+  },
+  {
+    name: "ne_10m_admin_0_countries",
+    args: ["-z3", "-zg"],
+    params: ["--coalesce-densest-as-needed"],
+  },
+  {
+    name: "ne_10m_admin_1_states_provinces",
+    args: ["-Z4", "-zg"],
+    params: [
+      "--coalesce-densest-as-needed",
+      "--extend-zooms-if-still-dropping",
+    ],
+  },
+];
+
+const airports: Input[] = [
+  {
+    name: "ne_10m_airports",
+    args: ["-zg"],
+    params: ["--drop-densest-as-needed", "--extend-zooms-if-still-dropping"],
+  },
+];
+
 const naturalEarthInputSchema = z.object({
   name: z.string({ message: "Name: Expected a string" }),
   args: z.array(z.string({ message: "Args: Expected an array of strings" })),
@@ -113,16 +145,16 @@ const convertAllToMbtile = async (input: Input[]) => {
 
 const joinMbTiles = async (tiles: string[], outputName: string) => {
   const output = `./output/mbtiles/${outputName}.mbtiles`;
-  // if (!existsSync(output)) {
-  try {
-    console.time(output);
-    await $`tile-join -o ${output} ${tiles} --force`;
-  } catch (error) {
-    await logError(error);
-  } finally {
-    console.timeEnd(output);
+  if (!existsSync(output)) {
+    try {
+      console.time(output);
+      await $`tile-join -o ${output} ${tiles} --force`;
+    } catch (error) {
+      await logError(error);
+    } finally {
+      console.timeEnd(output);
+    }
   }
-  // }
   return output;
 };
 
@@ -141,35 +173,29 @@ const convertToPmTile = async (input: string, outputName: string) => {
   return output;
 };
 
-const outputNameSchema = z.string({
-  message: "Output name: Expected a string",
-});
+const convertAllInputs = async ([name, inputs]: [
+  name: string,
+  inputs: Input[]
+]) => {
+  console.time(name);
+  const mbtiles = await convertAllToMbtile(inputs);
+  const outputName = await joinMbTiles(mbtiles, name);
+  const pmtiles = await convertToPmTile(outputName, name);
+  console.timeEnd(name);
+  return pmtiles;
+};
 
 const main = async () => {
-  const inputPath = path.resolve(process.argv[2]);
-  const outputName = outputNameSchema.parse(
-    inputPath.split("/").pop()?.replace(".ts", "")
-  );
-  if (!existsSync(inputPath)) {
-    throw new Error(`Input path ${inputPath} does not exist`);
-  }
-  const inputModule = await import(inputPath);
-  const input = z
-    .array(naturalEarthInputSchema, {
-      message:
-        "Input: Expected an array of objects with name, args, and params",
-    })
-    .parse(inputModule.default);
+  const inputs: [string, Input[]][] = [
+    ["world", world],
+    ["airports", airports],
+  ];
   try {
-    console.time(process.argv[2]);
-    const mbtiles = await convertAllToMbtile(input);
-    const world = await joinMbTiles(mbtiles, outputName);
-    const pmtiles = await convertToPmTile(world, outputName);
-    await $`echo "Done! ${pmtiles}"`;
+    const promises = inputs.map(convertAllInputs);
+    await Promise.all(promises);
   } catch (error) {
     await logError(error);
   } finally {
-    console.timeEnd(process.argv[2]);
   }
 };
 

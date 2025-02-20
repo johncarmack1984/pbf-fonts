@@ -26,20 +26,21 @@ const pbfs = [
   "north-america/us/pennsylvania",
 ];
 
-const makePath = async (pbf: string) => {
+const makePath = async (pbf: string, targetDir: string) => {
   const path = pbf.split("/");
   const filename = `${path.pop()}`;
-  let outputdir = "./output/geofabrik";
+  let outputdir = targetDir;
   for (const segment of path) {
     outputdir = `${outputdir}/${segment}`;
     if (!existsSync(outputdir)) {
       await $`mkdir -p ${outputdir}`;
     }
   }
-  const filepath = `${outputdir}/${filename}.osm.pbf`;
-  return filepath;
+  return `${outputdir}/${filename}`;
 };
-const downloadPBF = async (pbf: string, filepath: string) => {
+
+const downloadPBF = async (pbf: string) => {
+  const filepath = `${await makePath(pbf, "./output/geofabrik")}.osm.pbf`;
   if (!existsSync(filepath)) {
     const url = `https://download.geofabrik.de/${pbf}-latest.osm.pbf`;
     const tag = `${pbf}-download`;
@@ -53,29 +54,28 @@ const downloadPBF = async (pbf: string, filepath: string) => {
       console.timeEnd(tag);
     }
   }
+  return filepath;
 };
 
-const tilemaker = async (region: string) => {
-  const output = `./output/pmtiles/${region}.pmtiles`;
-  if (existsSync(output)) {
-    return;
-  }
-  try {
-    console.time(output);
-    await $`tilemaker ./output/geofabrik/${region}.osm.pbf --output ${output} --config ./layers/tilemaker.json --process ./scripts/process.lua`;
-  } catch (error) {
-    console.error(error);
-  } finally {
-    console.timeEnd(output);
+const tilemaker = async (name: string, input: string) => {
+  const filepath = `${await makePath(name, "./output/pmtiles")}.pmtiles`;
+  if (!existsSync(filepath)) {
+    try {
+      console.time(filepath);
+      await $`tilemaker ${input} --output ${filepath} --config ./layers/tilemaker.json --process ./scripts/process.lua`;
+    } catch (error) {
+      console.error(error);
+    } finally {
+      console.timeEnd(filepath);
+    }
   }
 };
 
-const fetchPbf = async (pbf: string) => {
+const pbfToPmtiles = async (pbf: string) => {
   console.time(pbf);
   try {
-    const filepath = await makePath(pbf);
-    await downloadPBF(pbf, filepath);
-    await tilemaker(pbf);
+    const filepath = await downloadPBF(pbf);
+    await tilemaker(pbf, filepath);
   } catch (error) {
     console.error(error);
   } finally {
@@ -83,19 +83,19 @@ const fetchPbf = async (pbf: string) => {
   }
 };
 
-// const upload = async () => {
-//   console.time("upload-pmtiles");
-//   await $`aws-vault exec newearth -- aws s3 sync ./output s3://newearth-public/maps/`;
-//   console.timeEnd("upload-pmtiles");
-// };
+const upload = async () => {
+  console.time("upload-pmtiles");
+  await $`aws-vault exec newearth -- aws s3 sync ./output s3://newearth-public/maps/`;
+  console.timeEnd("upload-pmtiles");
+};
 
 const main = async () => {
   const tag = "geofabrik-region-download";
   try {
     console.time(tag);
-    const promises = pbfs.map(fetchPbf);
+    const promises = pbfs.map(pbfToPmtiles);
     await Promise.all(promises);
-    // await upload();
+    await upload();
   } catch (error) {
     console.error(error);
   } finally {
