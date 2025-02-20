@@ -5,7 +5,7 @@ import { z } from "zod";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-const inputSchema = z.object({
+const naturalEarthInputSchema = z.object({
   name: z.string({ message: "Name: Expected a string" }),
   args: z.array(z.string({ message: "Args: Expected an array of strings" })),
   params: z.array(
@@ -13,7 +13,7 @@ const inputSchema = z.object({
   ),
 });
 
-export type Input = z.infer<typeof inputSchema>;
+export type Input = z.infer<typeof naturalEarthInputSchema>;
 
 const logError = async (error: Error | unknown) => {
   await $`echo "${JSON.stringify(error)}" >> ./error/log.txt`;
@@ -155,7 +155,7 @@ const main = async () => {
   }
   const inputModule = await import(inputPath);
   const input = z
-    .array(inputSchema, {
+    .array(naturalEarthInputSchema, {
       message:
         "Input: Expected an array of objects with name, args, and params",
     })

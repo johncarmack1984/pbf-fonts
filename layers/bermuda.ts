@@ -1,4 +1,4 @@
-import type { Input } from "../scripts/base-tiles";
+import type { Input } from "../scripts/natural-earth-layers";
 
 const bermuda: Input[] = [];
 
