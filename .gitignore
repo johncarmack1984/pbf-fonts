@@ -181,7 +181,9 @@ log.txt
 *.mbtiles
 output/ne/**/*
 !output/ne/README.md
-osm/**/*
+output/osm/**/*
 !osm/README.md
 *.pmtiles
 *.zip
+output/fonts/**/*
+!output/fonts/README.md

@@ -49,16 +49,16 @@ const tilemaker = async (name: string, input: string) => {
     name,
     "./output/pmtiles/regions"
   )}.pmtiles`;
-  if (!existsSync(filepath)) {
-    try {
-      console.time(filepath);
-      await $`tilemaker ${input} --output ${filepath} --config ./scripts/tilemaker.json --process ./scripts/process.lua`;
-    } catch (error) {
-      logError(error);
-    } finally {
-      console.timeEnd(filepath);
-    }
+  // if (!existsSync(filepath)) {
+  try {
+    console.time(filepath);
+    await $`tilemaker ${input} --output ${filepath} --config ./scripts/tilemaker.json --process ./scripts/process.lua`;
+  } catch (error) {
+    logError(error);
+  } finally {
+    console.timeEnd(filepath);
   }
+  // }
 };
 
 const pbfToPmtiles = async (pbf: string) => {
@@ -79,7 +79,7 @@ const main = async () => {
     console.time(tag);
     const promises = pbfs.map(pbfToPmtiles);
     await Promise.all(promises);
-    upload();
+    // upload();
   } catch (error) {
     logError(error);
   } finally {

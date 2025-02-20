@@ -20,8 +20,38 @@ const base: Input[] = [
   {
     name: "ne_10m_coastline",
     collection: "10m/physical",
-    args: [],
-    params: [],
+    args: ["-zg"],
+    params: [
+      "--coalesce-densest-as-needed",
+      "--extend-zooms-if-still-dropping",
+    ],
+  },
+  {
+    name: "ne_10m_ocean",
+    collection: "10m/physical",
+    args: ["-zg"],
+    params: [
+      "--coalesce-densest-as-needed",
+      "--extend-zooms-if-still-dropping",
+    ],
+  },
+  {
+    name: "ne_10m_antarctic_ice_shelves_polys",
+    collection: "10m/physical",
+    args: ["-zg"],
+    params: [
+      "--coalesce-densest-as-needed",
+      "--extend-zooms-if-still-dropping",
+    ],
+  },
+  {
+    name: "ne_10m_glaciated_areas",
+    collection: "10m/physical",
+    args: ["-zg"],
+    params: [
+      "--coalesce-densest-as-needed",
+      "--extend-zooms-if-still-dropping",
+    ],
   },
 ];
 
@@ -45,6 +75,15 @@ const world: Input[] = [
     name: "ne_10m_admin_1_states_provinces",
     collection: "10m/cultural",
     args: ["-Z4", "-zg"],
+    params: [
+      "--coalesce-densest-as-needed",
+      "--extend-zooms-if-still-dropping",
+    ],
+  },
+  {
+    name: "ne_10m_urban_areas",
+    collection: "10m/cultural",
+    args: ["-zg"],
     params: [
       "--coalesce-densest-as-needed",
       "--extend-zooms-if-still-dropping",
