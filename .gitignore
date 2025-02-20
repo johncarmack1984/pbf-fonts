@@ -176,3 +176,12 @@ dist
 
 .env
 *.osm.pbf
+log.txt
+*.geojson
+*.mbtiles
+ne/**/*
+!ne/README.md
+osm/**/*
+!osm/README.md
+*.pmtiles
+*.zip
