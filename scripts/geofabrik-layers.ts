@@ -3,6 +3,15 @@ import { $ } from "bun";
 import { existsSync } from "node:fs";
 
 const pbfs = [
+  "africa",
+  "antarctica",
+  "asia",
+  "australia-oceania",
+  "central-america",
+  "europe",
+  "north-america",
+  "south-america",
+  "north-america/canada/ontario",
   "north-america/us",
   "north-america/us-northeast",
   "north-america/us-south",
@@ -11,6 +20,7 @@ const pbfs = [
   "north-america/us/district-of-columbia",
   "north-america/us/florida",
   "north-america/us/maine",
+  "north-america/us/maryland",
   "north-america/us/massachusetts",
   "north-america/us/new-york",
   "north-america/us/pennsylvania",
@@ -45,11 +55,27 @@ const downloadPBF = async (pbf: string, filepath: string) => {
   }
 };
 
+const tilemaker = async (region: string) => {
+  const output = `./output/pmtiles/${region}.pmtiles`;
+  if (existsSync(output)) {
+    return;
+  }
+  try {
+    console.time(output);
+    await $`tilemaker ./output/geofabrik/${region}.osm.pbf --output ${output} --config ./layers/tilemaker.json --process ./scripts/process.lua`;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    console.timeEnd(output);
+  }
+};
+
 const fetchPbf = async (pbf: string) => {
   console.time(pbf);
   try {
     const filepath = await makePath(pbf);
     await downloadPBF(pbf, filepath);
+    await tilemaker(pbf);
   } catch (error) {
     console.error(error);
   } finally {
@@ -57,12 +83,19 @@ const fetchPbf = async (pbf: string) => {
   }
 };
 
+// const upload = async () => {
+//   console.time("upload-pmtiles");
+//   await $`aws-vault exec newearth -- aws s3 sync ./output s3://newearth-public/maps/`;
+//   console.timeEnd("upload-pmtiles");
+// };
+
 const main = async () => {
   const tag = "geofabrik-region-download";
   try {
     console.time(tag);
     const promises = pbfs.map(fetchPbf);
     await Promise.all(promises);
+    // await upload();
   } catch (error) {
     console.error(error);
   } finally {
