@@ -1,13 +1,34 @@
-// Takes one argument, the path to a file that exports an array of Input objects
-
 import { $ } from "bun";
 import { z } from "zod";
 import { existsSync } from "node:fs";
-import path from "node:path";
+import { logError } from "./log-error";
+import { makePath } from "./make-path";
+import { upload } from "./upload";
+
+const naturalEarthInputSchema = z.object({
+  name: z.string({ message: "Name: Expected a string" }),
+  collection: z.string({ message: "Collection: Expected a string" }),
+  args: z.array(z.string({ message: "Args: Expected an array of strings" })),
+  params: z.array(
+    z.string({ message: "Params: Expected an array of strings" })
+  ),
+});
+
+export type Input = z.infer<typeof naturalEarthInputSchema>;
+
+const base: Input[] = [
+  {
+    name: "ne_10m_coastline",
+    collection: "10m/physical",
+    args: [],
+    params: [],
+  },
+];
 
 const world: Input[] = [
   {
     name: "ne_10m_admin_0_boundary_lines_land",
+    collection: "10m/cultural",
     args: ["-Z4", "-zg"],
     params: [
       "--extend-zooms-if-still-dropping",
@@ -16,11 +37,13 @@ const world: Input[] = [
   },
   {
     name: "ne_10m_admin_0_countries",
+    collection: "10m/cultural",
     args: ["-z3", "-zg"],
     params: ["--coalesce-densest-as-needed"],
   },
   {
     name: "ne_10m_admin_1_states_provinces",
+    collection: "10m/cultural",
     args: ["-Z4", "-zg"],
     params: [
       "--coalesce-densest-as-needed",
@@ -32,119 +55,107 @@ const world: Input[] = [
 const airports: Input[] = [
   {
     name: "ne_10m_airports",
+    collection: "10m/cultural",
     args: ["-zg"],
     params: ["--drop-densest-as-needed", "--extend-zooms-if-still-dropping"],
   },
 ];
 
-const naturalEarthInputSchema = z.object({
-  name: z.string({ message: "Name: Expected a string" }),
-  args: z.array(z.string({ message: "Args: Expected an array of strings" })),
-  params: z.array(
-    z.string({ message: "Params: Expected an array of strings" })
-  ),
-});
-
-export type Input = z.infer<typeof naturalEarthInputSchema>;
-
-const logError = async (error: Error | unknown) => {
-  await $`echo "${JSON.stringify(error)}" >> ./error/log.txt`;
-  console.error(error);
-};
-
 const download = async (name: string) => {
-  const tag = `download-${name}`;
-  const filepath = `./output/zip/${name}.zip`;
+  const filepath = `${await makePath(name, "./output/zip")}.zip`;
   if (!existsSync(filepath)) {
-    console.time(tag);
-    await $`echo "Downloading ${filepath}..."`;
     try {
-      await $`curl "https://naciscdn.org/naturalearth/10m/cultural/${name}.zip" -o ${filepath}`;
-      await $`echo "OK"`;
+      console.time(filepath);
+      await $`curl "https://naciscdn.org/naturalearth/${name}.zip" -o ${filepath}`;
     } catch (error) {
       await logError(error);
     } finally {
-      console.timeEnd(tag);
+      console.timeEnd(filepath);
     }
   }
   return filepath;
 };
 
-const unzip = async (
-  zip: string,
-  name: string,
-  outputDir: string,
-  outputExt: string
-) => {
-  const filepath = `${outputDir}/${name}.${outputExt}`;
+const unzip = async (zip: string, name: string, collection: string) => {
+  const outputDir = `${await makePath(`${collection}/${name}`, "./output/ne")}`;
+  const filepath = `${outputDir}/${name}.shp`;
   if (!existsSync(filepath)) {
     try {
-      console.time(`unzip-${name}`);
+      console.time(filepath);
       await $`unzip -o "${zip}" -d "${outputDir}"`;
     } catch (error) {
       await logError(error);
     } finally {
-      console.timeEnd(`unzip-${name}`);
+      console.timeEnd(filepath);
     }
   }
   return filepath;
 };
 
 const convertToGeojson = async (name: string, input: string) => {
-  const filepath = `./output/geojson/${name}.geojson`;
+  const filepath = `${await makePath(name, "./output/geojson")}.geojson`;
   if (!existsSync(filepath)) {
     try {
-      console.time(`convert-${name}`);
+      console.time(filepath);
       await $`ogr2ogr -f GeoJSON ${filepath} ${input}`;
     } catch (error) {
       await logError(error);
     } finally {
-      console.timeEnd(`convert-${name}`);
+      console.timeEnd(filepath);
     }
   }
   return filepath;
 };
 
 const convertToMbtile = async (
-  { name, args, params }: Input,
+  { name, collection, args, params }: Input,
   input: string
 ) => {
-  const filepath = `./output/mbtiles/${name}.mbtiles`;
+  const filepath = `${await makePath(
+    `${collection}/${name}`,
+    "./output/mbtiles"
+  )}.mbtiles`;
   if (!existsSync(filepath)) {
     try {
-      console.time(`convert-${name}`);
+      console.time(filepath);
       await $`tippecanoe ${args} -o ${filepath} ${params} ${input} --force`;
     } catch (error) {
       await logError(error);
     } finally {
-      console.timeEnd(`convert-${name}`);
+      console.timeEnd(filepath);
     }
   }
   return filepath;
 };
 
-const convertAllToMbtile = async (input: Input[]) => {
+const downloadToMbtile = async ({ name, collection, args, params }: Input) => {
   const tiles: string[] = [];
-  if (input.length === 0) return tiles;
-  for (const { name, args, params } of input) {
-    try {
-      console.time(name);
-      const zip = await download(name);
-      const shp = await unzip(zip, name, `./output/ne/${name}`, "shp");
-      const geojson = await convertToGeojson(name, shp);
-      const mbtiles = await convertToMbtile({ name, args, params }, geojson);
-      tiles.push(mbtiles);
-    } catch (error) {
-      await logError(error);
-    } finally {
-      console.timeEnd(name);
-    }
+  try {
+    console.time(name);
+    const zip = await download(`${collection}/${name}`);
+    const shp = await unzip(zip, name, collection);
+    const geojson = await convertToGeojson(`${collection}/${name}`, shp);
+    const mbtiles = await convertToMbtile(
+      { name, collection, args, params },
+      geojson
+    );
+    tiles.push(mbtiles);
+  } catch (error) {
+    await logError(error);
+  } finally {
+    console.timeEnd(name);
   }
   return tiles;
 };
 
+const downloadAllToMbtile = async (input: Input[]) => {
+  if (input.length === 0) return [];
+  const promises = input.map(downloadToMbtile);
+  return (await Promise.all(promises)).flat();
+};
+
 const joinMbTiles = async (tiles: string[], outputName: string) => {
-  const output = `./output/mbtiles/${outputName}.mbtiles`;
+  const output = `${await makePath(outputName, "./output/mbtiles")}.mbtiles`;
   if (!existsSync(output)) {
     try {
       console.time(output);
@@ -159,7 +170,7 @@ const joinMbTiles = async (tiles: string[], outputName: string) => {
 };
 
 const convertToPmTile = async (input: string, outputName: string) => {
-  const output = `./output/pmtiles/${outputName}.pmtiles`;
+  const output = `${await makePath(outputName, "./output/pmtiles")}.pmtiles`;
   if (!existsSync(output)) {
     try {
       console.time(output);
@@ -178,21 +189,24 @@ const convertAllInputs = async ([name, inputs]: [
   inputs: Input[]
 ]) => {
   console.time(name);
-  const mbtiles = await convertAllToMbtile(inputs);
-  const outputName = await joinMbTiles(mbtiles, name);
-  const pmtiles = await convertToPmTile(outputName, name);
+  if (inputs.length > 0) {
+    const mbtiles = await downloadAllToMbtile(inputs);
+    const outputName = await joinMbTiles(mbtiles, name);
+    await convertToPmTile(outputName, name);
+  }
   console.timeEnd(name);
-  return pmtiles;
 };
 
 const main = async () => {
   const inputs: [string, Input[]][] = [
+    ["base", base],
     ["world", world],
     ["airports", airports],
   ];
   try {
     const promises = inputs.map(convertAllInputs);
     await Promise.all(promises);
+    await upload();
   } catch (error) {
     await logError(error);
   } finally {

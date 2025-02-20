@@ -1,6 +1,9 @@
 import { $ } from "bun";
 
 import { existsSync } from "node:fs";
+import { makePath } from "./make-path";
+import { logError } from "./log-error";
+import { upload } from "./upload";
 
 const pbfs = [
   "africa",
@@ -26,45 +29,32 @@ const pbfs = [
   "north-america/us/pennsylvania",
 ];
 
-const makePath = async (pbf: string, targetDir: string) => {
-  const path = pbf.split("/");
-  const filename = `${path.pop()}`;
-  let outputdir = targetDir;
-  for (const segment of path) {
-    outputdir = `${outputdir}/${segment}`;
-    if (!existsSync(outputdir)) {
-      await $`mkdir -p ${outputdir}`;
-    }
-  }
-  return `${outputdir}/${filename}`;
-};
-
 const downloadPBF = async (pbf: string) => {
-  const filepath = `${await makePath(pbf, "./output/geofabrik")}.osm.pbf`;
+  const filepath = `${await makePath(pbf, "./output/geofabrik/pbf")}.osm.pbf`;
   if (!existsSync(filepath)) {
-    const url = `https://download.geofabrik.de/${pbf}-latest.osm.pbf`;
-    const tag = `${pbf}-download`;
     try {
-      console.time(tag);
-      await $`curl "${url}" --output ${filepath}`;
+      console.time(filepath);
+      await $`curl "https://download.geofabrik.de/${pbf}-latest.osm.pbf" --output ${filepath}`;
     } catch (error) {
-      await $`echo "ERROR"`;
-      console.error(error);
+      logError(error);
     } finally {
-      console.timeEnd(tag);
+      console.timeEnd(filepath);
     }
   }
   return filepath;
 };
 
 const tilemaker = async (name: string, input: string) => {
-  const filepath = `${await makePath(name, "./output/pmtiles")}.pmtiles`;
+  const filepath = `${await makePath(
+    name,
+    "./output/pmtiles/regions"
+  )}.pmtiles`;
   if (!existsSync(filepath)) {
     try {
       console.time(filepath);
-      await $`tilemaker ${input} --output ${filepath} --config ./layers/tilemaker.json --process ./scripts/process.lua`;
+      await $`tilemaker ${input} --output ${filepath} --config ./scripts/tilemaker.json --process ./scripts/process.lua`;
     } catch (error) {
-      console.error(error);
+      logError(error);
     } finally {
       console.timeEnd(filepath);
     }
@@ -72,21 +62,15 @@ const tilemaker = async (name: string, input: string) => {
 };
 
 const pbfToPmtiles = async (pbf: string) => {
-  console.time(pbf);
   try {
+    console.time(pbf);
     const filepath = await downloadPBF(pbf);
     await tilemaker(pbf, filepath);
   } catch (error) {
-    console.error(error);
+    logError(error);
   } finally {
     console.timeEnd(pbf);
   }
-};
-
-const upload = async () => {
-  console.time("upload-pmtiles");
-  await $`aws-vault exec newearth -- aws s3 sync ./output s3://newearth-public/maps/`;
-  console.timeEnd("upload-pmtiles");
 };
 
 const main = async () => {
@@ -95,9 +79,9 @@ const main = async () => {
     console.time(tag);
     const promises = pbfs.map(pbfToPmtiles);
     await Promise.all(promises);
-    await upload();
+    upload();
   } catch (error) {
-    console.error(error);
+    logError(error);
   } finally {
     console.timeEnd(tag);
   }

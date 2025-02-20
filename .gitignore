@@ -179,8 +179,8 @@ dist
 log.txt
 *.geojson
 *.mbtiles
-ne/**/*
-!ne/README.md
+output/ne/**/*
+!output/ne/README.md
 osm/**/*
 !osm/README.md
 *.pmtiles
