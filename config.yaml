@@ -1,0 +1,38 @@
+pmtiles:
+  paths: ./output/pmtiles
+  sources:
+    airports: ./output/pmtiles/airports.pmtiles
+    base: ./output/pmtiles/base.pmtiles
+    world: ./output/pmtiles/world.pmtiles
+    africa: ./output/pmtiles/regions/africa.pmtiles
+    antarctica: ./output/pmtiles/regions/antarctica.pmtiles
+    asia: ./output/pmtiles/regions/asia.pmtiles
+    australia-oceania: ./output/pmtiles/regions/australia-oceania.pmtiles
+    europe: ./output/pmtiles/regions/europe.pmtiles
+    north-america: ./output/pmtiles/regions/north-america.pmtiles
+    south-america: ./output/pmtiles/regions/south-america.pmtiles
+    ontario: ./output/pmtiles/regions/north-america/canada/ontario.pmtiles
+    us-northeast: ./output/pmtiles/regions/north-america/us-northeast.pmtiles
+    us-south: ./output/pmtiles/regions/north-america/us-south.pmtiles
+    us: ./output/pmtiles/regions/north-america/us.pmtiles
+    connecticut: ./output/pmtiles/regions/north-america/us/connecticut.pmtiles
+    delaware: ./output/pmtiles/regions/north-america/us/delaware.pmtiles
+    district-of-columbia: ./output/pmtiles/regions/north-america/us/district-of-columbia.pmtiles
+    florida: ./output/pmtiles/regions/north-america/us/florida.pmtiles
+    maine: ./output/pmtiles/regions/north-america/us/maine.pmtiles
+    maryland: ./output/pmtiles/regions/north-america/us/maryland.pmtiles
+    massachusetts: ./output/pmtiles/regions/north-america/us/massachusetts.pmtiles
+    new-york: ./output/pmtiles/regions/north-america/us/new-york.pmtiles
+    pennsylvania: ./output/pmtiles/regions/north-america/us/pennsylvania.pmtiles
+
+mbtiles: ./output/pmtiles
+
+web_ui: enable-for-all
+
+sprites:
+  sources:
+    # mapbox-theme:
+    #   path: ./input/mapbox-style/sprite_images
+    fltsci-icons:
+      path: ./input/figma/fltsci-sprites
+      # as_sdf: true

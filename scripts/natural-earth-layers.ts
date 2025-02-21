@@ -5,9 +5,12 @@ import { logError } from "./log-error";
 import { makePath } from "./make-path";
 import { upload } from "./upload";
 
+import "dotenv/config";
+
 const naturalEarthInputSchema = z.object({
   name: z.string({ message: "Name: Expected a string" }),
   collection: z.string({ message: "Collection: Expected a string" }),
+  description: z.string({ message: "Description: Expected a string" }),
   args: z.array(z.string({ message: "Args: Expected an array of strings" })),
   params: z.array(
     z.string({ message: "Params: Expected an array of strings" })
@@ -20,6 +23,7 @@ const base: Input[] = [
   {
     name: "ne_10m_coastline",
     collection: "10m/physical",
+    description: "Coastline",
     args: ["-zg"],
     params: [
       "--coalesce-densest-as-needed",
@@ -29,6 +33,7 @@ const base: Input[] = [
   {
     name: "ne_10m_ocean",
     collection: "10m/physical",
+    description: "Ocean",
     args: ["-zg"],
     params: [
       "--coalesce-densest-as-needed",
@@ -38,6 +43,7 @@ const base: Input[] = [
   {
     name: "ne_10m_antarctic_ice_shelves_polys",
     collection: "10m/physical",
+    description: "Antarctic Ice Shelves",
     args: ["-zg"],
     params: [
       "--coalesce-densest-as-needed",
@@ -47,6 +53,7 @@ const base: Input[] = [
   {
     name: "ne_10m_glaciated_areas",
     collection: "10m/physical",
+    description: "Glaciated Areas",
     args: ["-zg"],
     params: [
       "--coalesce-densest-as-needed",
@@ -59,6 +66,7 @@ const world: Input[] = [
   {
     name: "ne_10m_admin_0_boundary_lines_land",
     collection: "10m/cultural",
+    description: "Admin 0 Boundary Lines Land",
     args: ["-Z4", "-zg"],
     params: [
       "--extend-zooms-if-still-dropping",
@@ -68,12 +76,14 @@ const world: Input[] = [
   {
     name: "ne_10m_admin_0_countries",
     collection: "10m/cultural",
+    description: "Admin 0 Countries",
     args: ["-z3", "-zg"],
     params: ["--coalesce-densest-as-needed"],
   },
   {
     name: "ne_10m_admin_1_states_provinces",
     collection: "10m/cultural",
+    description: "Admin 1 States Provinces",
     args: ["-Z4", "-zg"],
     params: [
       "--coalesce-densest-as-needed",
@@ -83,6 +93,7 @@ const world: Input[] = [
   {
     name: "ne_10m_urban_areas",
     collection: "10m/cultural",
+    description: "Urban Areas",
     args: ["-zg"],
     params: [
       "--coalesce-densest-as-needed",
@@ -95,6 +106,7 @@ const airports: Input[] = [
   {
     name: "ne_10m_airports",
     collection: "10m/cultural",
+    description: "Airports",
     args: ["-zg"],
     params: ["--drop-densest-as-needed", "--extend-zooms-if-still-dropping"],
   },
@@ -154,10 +166,10 @@ const convertToMbtile = async (
     `${collection}/${name}`,
     "./output/mbtiles"
   )}.mbtiles`;
-  if (!existsSync(filepath)) {
+  if (!existsSync(filepath) || process.env.FORCE_MBTILES) {
     try {
       console.time(filepath);
-      await $`tippecanoe ${args} -o ${filepath} ${params} ${input} --force`;
+      await $`tippecanoe ${args} -n ${name} -o ${filepath} ${params} ${input} --force`;
     } catch (error) {
       await logError(error);
     } finally {
@@ -167,7 +179,13 @@ const convertToMbtile = async (
   return filepath;
 };
 
-const downloadToMbtile = async ({ name, collection, args, params }: Input) => {
+const downloadToMbtile = async ({
+  name,
+  collection,
+  args,
+  params,
+  description,
+}: Input) => {
   const tiles: string[] = [];
   try {
     console.time(name);
@@ -175,7 +193,7 @@ const downloadToMbtile = async ({ name, collection, args, params }: Input) => {
     const shp = await unzip(zip, name, collection);
     const geojson = await convertToGeojson(`${collection}/${name}`, shp);
     const mbtiles = await convertToMbtile(
-      { name, collection, args, params },
+      { name, collection, args, params, description },
       geojson
     );
     tiles.push(mbtiles);
@@ -193,12 +211,16 @@ const downloadAllToMbtile = async (input: Input[]) => {
   return (await Promise.all(promises)).flat();
 };
 
-const joinMbTiles = async (tiles: string[], outputName: string) => {
+const joinMbTiles = async (
+  tiles: string[],
+  outputName: string,
+  description: string
+) => {
   const output = `${await makePath(outputName, "./output/mbtiles")}.mbtiles`;
-  if (!existsSync(output)) {
+  if (!existsSync(output) || process.env.FORCE_TILE_JOIN) {
     try {
       console.time(output);
-      await $`tile-join -o ${output} ${tiles} --force`;
+      await $`tile-join -o ${output} ${tiles} -A "Flight Science" --name "${outputName}" --description "${description}" --force`;
     } catch (error) {
       await logError(error);
     } finally {
@@ -208,9 +230,13 @@ const joinMbTiles = async (tiles: string[], outputName: string) => {
   return output;
 };
 
-const convertToPmTile = async (input: string, outputName: string) => {
+const convertToPmTile = async (
+  input: string,
+  outputName: string,
+  description: string
+) => {
   const output = `${await makePath(outputName, "./output/pmtiles")}.pmtiles`;
-  if (!existsSync(output)) {
+  if (!existsSync(output) || process.env.FORCE_PMTILES) {
     try {
       console.time(output);
       await $`pmtiles convert ${input} ${output}`;
@@ -223,29 +249,32 @@ const convertToPmTile = async (input: string, outputName: string) => {
   return output;
 };
 
-const convertAllInputs = async ([name, inputs]: [
+const convertAllInputs = async ([name, description, inputs]: [
   name: string,
+  description: string,
   inputs: Input[]
 ]) => {
   console.time(name);
   if (inputs.length > 0) {
     const mbtiles = await downloadAllToMbtile(inputs);
-    const outputName = await joinMbTiles(mbtiles, name);
-    await convertToPmTile(outputName, name);
+    const outputName = await joinMbTiles(mbtiles, name, description);
+    await convertToPmTile(outputName, name, description);
   }
   console.timeEnd(name);
 };
 
 const main = async () => {
-  const inputs: [string, Input[]][] = [
-    ["base", base],
-    ["world", world],
-    ["airports", airports],
+  const inputs: [string, string, Input[]][] = [
+    ["base", "Coastline and land cover", base],
+    ["world", "Shapes of continents and countries", world],
+    ["airports", "Point data for every airport on OpenStreetMap", airports],
   ];
   try {
     const promises = inputs.map(convertAllInputs);
     await Promise.all(promises);
-    await upload();
+    if (process.env.UPLOAD) {
+      await upload();
+    }
   } catch (error) {
     await logError(error);
   } finally {

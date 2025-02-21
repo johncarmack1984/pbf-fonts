@@ -187,3 +187,9 @@ output/osm/**/*
 *.zip
 output/fonts/**/*
 !output/fonts/README.md
+output/aws/**/*
+!output/aws/README.md
+output/sprite-one/**/*
+!output/sprite-one/README.md
+input/**/*
+!input/README.md

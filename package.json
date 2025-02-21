@@ -10,6 +10,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "cheerio": "^1.0.0"
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "glob": "^11.0.1",
+    "sprite-one": "github:dschep/sprite-one"
   }
 }
