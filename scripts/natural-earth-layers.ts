@@ -108,7 +108,7 @@ const airports: Input[] = [
     collection: "10m/cultural",
     description: "Airports",
     args: ["-zg"],
-    params: ["--drop-densest-as-needed", "--extend-zooms-if-still-dropping"],
+    params: ["--extend-zooms-if-still-dropping"],
   },
 ];
 
@@ -220,6 +220,10 @@ const joinMbTiles = async (
   if (!existsSync(output) || process.env.FORCE_TILE_JOIN) {
     try {
       console.time(output);
+      if (tiles.length < 2) {
+        await $`cp ${tiles[0]} ${output}`;
+        return output;
+      }
       await $`tile-join -o ${output} ${tiles} -A "Flight Science" --name "${outputName}" --description "${description}" --force`;
     } catch (error) {
       await logError(error);

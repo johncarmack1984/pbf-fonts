@@ -35,12 +35,10 @@ const checkIfFileExistsInS3 = async (key: string) => {
   }
 };
 
-const checkIfFileSizeIsDifferent = (
+const fileSizesAreDifferent = (
   s3ResponseJson: S3HeadObjectResponse,
   file: Path
-) => {
-  return s3ResponseJson.ContentLength !== file.size;
-};
+) => s3ResponseJson.ContentLength !== file.size;
 
 const decideIfShouldUpload = async (file: Path) => {
   const key = file.name;
@@ -52,7 +50,7 @@ const decideIfShouldUpload = async (file: Path) => {
       return true;
     }
 
-    if (s3Response.ContentLength !== file.size) {
+    if (fileSizesAreDifferent(s3Response, file)) {
       console.log(
         `${key} size mismatch: ${s3Response.ContentLength} !== ${file.size}; reuploading...`
       );
