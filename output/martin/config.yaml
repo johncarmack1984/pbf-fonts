@@ -1,0 +1,11 @@
+pmtiles:
+  paths:
+    - tiles
+
+sprites:
+  paths:
+    - sprite/mapbox
+    - sprite/fltsci
+
+fonts:
+  - fonts/ttf

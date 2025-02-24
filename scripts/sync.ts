@@ -1,14 +1,21 @@
 import { $ } from "bun";
 
 import "dotenv/config";
+import { logError } from "./log-error";
+
+const bucket = process.env.OUTPUT_BUCKET ?? "newearth-public";
 
 const sync = async () => {
-  return await $`aws s3 sync ./output s3://${process.env.AWS_OUTPUT_ROOT} --exclude "*" --include "./output/fonts/**/*" --include "./output/geofabrik/**/*" --include "./output/geojson/**/*" --include "./output/mapbox/**/*" --include "./output/mbtiles/**/*" --include "./output/ne/**/*" --include "./output/osm/**/*" --include "./output/pmtiles/**/*" --include "./output/sprite/**/*" --include "./output/zip/**/*" --include "*.mbtiles" --include "*.pmtiles" --exclude "README.md" --delete`;
+  try {
+    console.time("sync");
+    return await $`aws s3 sync ./output s3://${bucket} --exclude "*.DS_Store" --exclude "README.md" --exclude "geofabrik/**/*" --exclude "pmtiles/**/*" --exclude="zip/**/*" --delete`;
+  } catch (error) {
+    logError(error);
+  } finally {
+    console.timeEnd("sync");
+  }
 };
 
-if (import.meta.main) {
-  console.time("sync");
-  await sync();
-  console.timeEnd("sync");
-}
+if (import.meta.main) await sync();
+
 export { sync };

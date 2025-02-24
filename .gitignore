@@ -193,4 +193,4 @@ output/sprite/**/*
 !output/sprite/README.md
 input/**/*
 !input/README.md
-cache/**/*
+**/*/cache/**/*

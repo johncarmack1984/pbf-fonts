@@ -1,11 +1,6 @@
 import * as cdk from "aws-cdk-lib";
-import {
-  Bucket,
-  BlockPublicAccess,
-  HttpMethods,
-  type CorsRule,
-} from "aws-cdk-lib/aws-s3";
-import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
+import * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3deployment from "aws-cdk-lib/aws-s3-deployment";
 import {
   Distribution,
   OriginRequestPolicy,
@@ -15,31 +10,26 @@ import {
 } from "aws-cdk-lib/aws-cloudfront";
 import { S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
 import type { Construct } from "constructs";
-import { BucketAccessControl } from "aws-cdk-lib/aws-s3";
-import { join } from "node:path";
-
-import "dotenv/config";
 
 export class S3CdnCdkStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: cdk.StackProps) {
     super(scope, id, props);
-    // Desktop Public Assets (map sprites, etc.) & CloudFront CDN
-    const desktopPublicCorsRule: CorsRule = {
-      allowedMethods: [HttpMethods.GET, HttpMethods.HEAD],
+    const desktopPublicCorsRule: s3.CorsRule = {
+      allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
       allowedOrigins: ["*"],
       allowedHeaders: ["*"],
       maxAge: 300,
     };
-    const desktopPublicBucket = new Bucket(this, "DesktopPublicBucket", {
+    const desktopPublicBucket = new s3.Bucket(this, "DesktopPublicBucket", {
       bucketName: "newearth-public",
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      accessControl: BucketAccessControl.PRIVATE,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      accessControl: s3.BucketAccessControl.PRIVATE,
       cors: [desktopPublicCorsRule],
       versioned: true,
       objectLockEnabled: true,
     });
-    new BucketDeployment(this, "DesktopPublicBucketDeployment", {
-      sources: [Source.asset(join(__dirname, "../../output/sprite"))],
+    new s3deployment.BucketDeployment(this, "DesktopPublicBucketDeployment", {
+      sources: [],
       destinationBucket: desktopPublicBucket,
     });
     new Distribution(this, "DesktopPublicDistribution", {

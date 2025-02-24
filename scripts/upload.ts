@@ -85,7 +85,8 @@ const uploadFile = async (file: Path) => {
       return;
     }
     console.log(`⬆️ uploading ${key}`);
-    const res = await $`aws s3 cp ${path} s3://${bucket}/${key}`;
+    // const res = await $`aws s3 cp ${path} s3://${bucket}/${key}`;
+    const res = await $`cp ${path} s3://${bucket}/${key}`;
     console.log(`✅ uploaded ${key}`);
     return res;
   } catch (error) {

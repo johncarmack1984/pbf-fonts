@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib";
 import { S3CdnCdkStack } from "../lib/s3-cdn-cdk-stack";
+import { MartinTileserverStack } from "../lib/martin-tileserver-stack";
 
 const app = new cdk.App();
 new S3CdnCdkStack(app, "S3CdnCdkStack", {
@@ -15,3 +16,7 @@ new S3CdnCdkStack(app, "S3CdnCdkStack", {
   // env: { account: '123456789012', region: 'us-east-1' },
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 });
+
+new MartinTileserverStack(app, "MartinTileserver", {});
+
+app.synth();

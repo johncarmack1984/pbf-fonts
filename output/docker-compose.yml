@@ -1,0 +1,16 @@
+services:
+  nginx:
+    image: nginx:alpine
+    depends_on: [martin]
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+
+  martin:
+    restart: unless-stopped
+    build:
+      context: ./martin
+      dockerfile: Dockerfile
+    ports: ["3000:3000"]
