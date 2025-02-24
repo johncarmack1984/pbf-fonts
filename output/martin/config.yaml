@@ -6,7 +6,6 @@ pmtiles:
 
 sprites:
   paths:
-    - sprite/mapbox
     - sprite/fltsci
 
 fonts:
