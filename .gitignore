@@ -194,4 +194,5 @@ output/sprite/**/*
 input/**/*
 !input/README.md
 **/*/cache/**/*
+!**/*/cache/README.md
 !output/martin/**/*.pmtiles
