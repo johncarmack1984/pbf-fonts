@@ -1,3 +1,5 @@
+listen_addresses: "0.0.0.0:80"
+
 pmtiles:
   paths:
     - tiles

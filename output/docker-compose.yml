@@ -13,4 +13,3 @@ services:
     build:
       context: ./martin
       dockerfile: Dockerfile
-    ports: ["3000:3000"]
