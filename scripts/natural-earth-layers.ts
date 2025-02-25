@@ -6,30 +6,22 @@ import { makePath } from "./make-path";
 import { upload } from "./upload";
 
 import "dotenv/config";
+import { unzip } from "./unzip";
+import { convertToGeojson } from "./convert-to-geojson";
+import type { LayerInput } from "./layer-input";
+import { convertToMbtile } from "./convert-to-mbtile";
 
-const naturalEarthInputSchema = z.object({
-  name: z.string({ message: "Name: Expected a string" }),
-  collection: z.string({ message: "Collection: Expected a string" }),
-  description: z.string({ message: "Description: Expected a string" }),
-  args: z.array(z.string({ message: "Args: Expected an array of strings" })),
-  params: z.array(
-    z.string({ message: "Params: Expected an array of strings" })
-  ),
-});
-
-export type Input = z.infer<typeof naturalEarthInputSchema>;
-
-const base: Input[] = [
-  {
-    name: "ne_10m_coastline",
-    collection: "10m/physical",
-    description: "Coastline",
-    args: ["-zg"],
-    params: [
-      "--coalesce-densest-as-needed",
-      "--extend-zooms-if-still-dropping",
-    ],
-  },
+const base: LayerInput[] = [
+  // {
+  //   name: "ne_10m_coastline",
+  //   collection: "10m/physical",
+  //   description: "Coastline",
+  //   args: ["-zg"],
+  //   params: [
+  //     "--coalesce-densest-as-needed",
+  //     "--extend-zooms-if-still-dropping",
+  //   ],
+  // },
   {
     name: "ne_10m_ocean",
     collection: "10m/physical",
@@ -40,29 +32,29 @@ const base: Input[] = [
       "--extend-zooms-if-still-dropping",
     ],
   },
-  {
-    name: "ne_10m_antarctic_ice_shelves_polys",
-    collection: "10m/physical",
-    description: "Antarctic Ice Shelves",
-    args: ["-zg"],
-    params: [
-      "--coalesce-densest-as-needed",
-      "--extend-zooms-if-still-dropping",
-    ],
-  },
-  {
-    name: "ne_10m_glaciated_areas",
-    collection: "10m/physical",
-    description: "Glaciated Areas",
-    args: ["-zg"],
-    params: [
-      "--coalesce-densest-as-needed",
-      "--extend-zooms-if-still-dropping",
-    ],
-  },
+  // {
+  //   name: "ne_10m_antarctic_ice_shelves_polys",
+  //   collection: "10m/physical",
+  //   description: "Antarctic Ice Shelves",
+  //   args: ["-zg"],
+  //   params: [
+  //     "--coalesce-densest-as-needed",
+  //     "--extend-zooms-if-still-dropping",
+  //   ],
+  // },
+  // {
+  //   name: "ne_10m_glaciated_areas",
+  //   collection: "10m/physical",
+  //   description: "Glaciated Areas",
+  //   args: ["-zg"],
+  //   params: [
+  //     "--coalesce-densest-as-needed",
+  //     "--extend-zooms-if-still-dropping",
+  //   ],
+  // },
 ];
 
-const world: Input[] = [
+const world: LayerInput[] = [
   {
     name: "ne_10m_admin_0_boundary_lines_land",
     collection: "10m/cultural",
@@ -102,7 +94,7 @@ const world: Input[] = [
   },
 ];
 
-const airports: Input[] = [
+const airports: LayerInput[] = [
   {
     name: "ne_10m_airports",
     collection: "10m/cultural",
@@ -127,70 +119,18 @@ const download = async (name: string) => {
   return filepath;
 };
 
-const unzip = async (zip: string, name: string, collection: string) => {
-  const outputDir = `${await makePath(`${collection}/${name}`, "./output/ne")}`;
-  const filepath = `${outputDir}/${name}.shp`;
-  if (!existsSync(filepath)) {
-    try {
-      console.time(filepath);
-      await $`unzip -o "${zip}" -d "${outputDir}"`;
-    } catch (error) {
-      await logError(error);
-    } finally {
-      console.timeEnd(filepath);
-    }
-  }
-  return filepath;
-};
-
-const convertToGeojson = async (name: string, input: string) => {
-  const filepath = `${await makePath(name, "./output/geojson")}.geojson`;
-  if (!existsSync(filepath)) {
-    try {
-      console.time(filepath);
-      await $`ogr2ogr -f GeoJSON ${filepath} ${input}`;
-    } catch (error) {
-      await logError(error);
-    } finally {
-      console.timeEnd(filepath);
-    }
-  }
-  return filepath;
-};
-
-const convertToMbtile = async (
-  { name, collection, args, params }: Input,
-  input: string
-) => {
-  const filepath = `${await makePath(
-    `${collection}/${name}`,
-    "./output/mbtiles"
-  )}.mbtiles`;
-  if (!existsSync(filepath) || process.env.FORCE_MBTILES) {
-    try {
-      console.time(filepath);
-      await $`tippecanoe ${args} -n ${name} -o ${filepath} ${params} ${input} --force`;
-    } catch (error) {
-      await logError(error);
-    } finally {
-      console.timeEnd(filepath);
-    }
-  }
-  return filepath;
-};
-
 const downloadToMbtile = async ({
   name,
   collection,
   args,
   params,
   description,
-}: Input) => {
+}: LayerInput) => {
   const tiles: string[] = [];
   try {
     console.time(name);
     const zip = await download(`${collection}/${name}`);
-    const shp = await unzip(zip, name, collection);
+    const shp = await unzip(zip, name, collection, "./output/ne");
     const geojson = await convertToGeojson(`${collection}/${name}`, shp);
     const mbtiles = await convertToMbtile(
       { name, collection, args, params, description },
@@ -205,7 +145,7 @@ const downloadToMbtile = async ({
   return tiles;
 };
 
-const downloadAllToMbtile = async (input: Input[]) => {
+const downloadAllToMbtile = async (input: LayerInput[]) => {
   if (input.length === 0) return [];
   const promises = input.map(downloadToMbtile);
   return (await Promise.all(promises)).flat();
@@ -256,7 +196,7 @@ const convertToPmTile = async (
 const convertAllInputs = async ([name, description, inputs]: [
   name: string,
   description: string,
-  inputs: Input[]
+  inputs: LayerInput[]
 ]) => {
   console.time(name);
   if (inputs.length > 0) {
@@ -268,10 +208,10 @@ const convertAllInputs = async ([name, description, inputs]: [
 };
 
 const main = async () => {
-  const inputs: [string, string, Input[]][] = [
+  const inputs: [string, string, LayerInput[]][] = [
     ["base", "Coastline and land cover", base],
-    ["world", "Shapes of continents and countries", world],
-    ["airports", "Point data for every airport on OpenStreetMap", airports],
+    // ["world", "Shapes of continents and countries", world],
+    // ["airports", "Point data for every airport on OpenStreetMap", airports],
   ];
   try {
     const promises = inputs.map(convertAllInputs);
